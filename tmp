@@ -1,0 +1,100 @@
+
+# %%
+from numpy import ndarray
+import numpy as np
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import recall_score
+from sklearn.metrics import f1_score
+from sklearn.metrics import cohen_kappa_score
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import confusion_matrix
+from sklearn.ensemble import RandomForestClassifier
+from mlo_common.db.snowflake import SnowflakeClient
+
+
+# %%
+type(holdout_datasets)
+
+# %%
+holdout_label = np.delete(df_training.columns.values, np.where(df_training.columns.values == 'RANDOM_VALUE_PER_DAY'))
+holdout_pandas = holdout_datasets.last().to_pandas()
+holdout_pandas.columns = holdout_label
+
+# %%
+# holdout_label = np.delete(df_training.columns.values, np.where(df_training.columns.values == 'RANDOM_VALUE_PER_DAY'))
+# holdout_pandas = holdout_datasets.first().to_pandas()
+# holdout_pandas.columns = holdout_label
+
+# %%
+holdout_pandas.head()
+
+# %%
+np.unique(holdout_pandas['RGU_SNAPSHOT_DATE'])
+
+# %%
+holdout_transformed = UpsellTvModel.transform(holdout_pandas)
+label_holdout = holdout_transformed['LABEL']
+y_pred_holdout = model.model.predict_proba(holdout_transformed[UpsellTvModel.variables])
+y_prob_holdout_calibrate = model.calibration_model.predict_proba(y_pred_holdout)
+# y_pred_holdout_calibrate = (y_prob_holdout_calibrate> 0.5).astype(int)
+
+# %%
+y_prob_holdout_calibrate[:,1]
+
+# %%
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import pylab
+import scipy.stats as stats
+import seaborn as sns
+from pandas import Series
+import itertools
+from typing import Optional
+
+
+
+def plot_predicted_vs_actual_grouped1(predictions: Series,
+                                     label: Series,
+                                     number_of_groups: int = 10,
+                                     sup_title: Optional[str] = None) -> None:
+    predictions_group = pd.qcut(predictions,
+                                number_of_groups,
+                                labels=False,
+                                duplicates='drop')
+    df = pd.DataFrame({'Predicted': predictions, 'True': label, 'Predicted group': predictions_group})
+    averages = df.groupby('Predicted group').mean().reset_index()
+    print(averages.head(number_of_groups))
+
+    sns.lineplot(x='Predicted group',
+                 y='value',
+                 hue='variable',
+                 data=pd.melt(averages, ['Predicted group']))
+
+    plt.title('Predicted vs Actuals per group', fontsize=12)
+    plt.suptitle(sup_title, fontsize=10)
+    plt.show()
+
+
+
+# %%
+plot_predicted_vs_actual_grouped1(y_prob_holdout_calibrate[:,1], label_holdout, 20, 'Test')
+
+# %%
+import matplotlib.pyplot as plt
+
+dset = pd.DataFrame()
+dset["attr"] = UpsellTvModel.variables
+dset["importance"] = model.model.feature_importances_
+dset = dset.sort_values(by="importance", ascending=False)
+plt.figure(figsize=(16, 14))
+plt.barh(y=dset["attr"], width=dset["importance"], color="#1976D2")
+plt.title(
+        "RFECV - Feature Importances",
+        fontsize=20,
+        fontweight="bold",
+        pad=20)
+plt.xlabel("Importance", fontsize=14, labelpad=20)
+plt.show()
